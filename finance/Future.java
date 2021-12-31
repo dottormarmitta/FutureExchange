@@ -1,9 +1,10 @@
 package finance;
 
+import calendar.MonthDates;
 import graph.DirectedEdge;
 
 /**
- * This class represent a financial future. It is represented as a {@link: DirectedEdge}
+ * This class represent a financial future. It is represented as a {@link DirectedEdge}
  * connecting
  * <br>
  * "InceptionDate &#8594; DeliveryDate"
@@ -17,9 +18,9 @@ public class Future implements DirectedEdge {
 	private final int from;
 	
 	private double[] bid;
-	private int bidPointer;
+	private int bidPointer;  // Indicating the current top Bid price
 	private double[] ask;
-	private int askPointer;
+	private int askPointer;  // Indicating the current top Ask price
 	private long[] bidLot;
 	private long[] askLot;
 
@@ -30,11 +31,11 @@ public class Future implements DirectedEdge {
 	 * @param bidQuantity an array of bid lots
 	 * @param ask an ascending-sorted array of asks
 	 * @param askQuantity an array of ask lots
-	 * @param inceptionDateID the ID of the vertex
-	 * @param deliveryDateID the ID of the vertex
+	 * @param inceptionDate the inception date
+	 * @param deliveryDate the delivery date
 	 */
 	public Future(double[] bid, long[] bidQuantity, double[] ask, long[] askQuantity, 
-			int inceptionDateID, int deliveryDateID) {
+			MonthDates inceptionDate, MonthDates deliveryDate) {
 		
 		this.bid = bid;
 		this.bidPointer = 0;
@@ -44,43 +45,25 @@ public class Future implements DirectedEdge {
 		this.askPointer = 0;
 		this.askLot = askQuantity;
 		
-		this.to = deliveryDateID;
-		this.from = inceptionDateID;
+		this.to = deliveryDate.ordinal(); // The int representation of the date
+		this.from = inceptionDate.ordinal(); // The int representation of the date
 	}
 	
 
 	@Override
 	public double bid() {
 		if (from < to) {
-			if(bidPointer >= bid.length) {
-				return Double.NEGATIVE_INFINITY;
-			} else {
-				return bid[bidPointer];
-			}
-		} else {
-			if(askPointer >= ask.length) {
-				return Double.NEGATIVE_INFINITY;
-			} else {
-				return -ask[askPointer];
-			}
+			return bidPointer >= bid.length ? Double.NEGATIVE_INFINITY : bid[bidPointer];
 		}
+		return askPointer >= ask.length ? Double.NEGATIVE_INFINITY : -ask[askPointer];
 	}
 	
 	@Override
 	public double ask() {
 		if (from < to) {
-			if(askPointer >= ask.length) {
-				return Double.POSITIVE_INFINITY;
-			} else {
-				return ask[askPointer];
-			}
-		} else {
-			if(bidPointer >= bid.length) {
-				return Double.POSITIVE_INFINITY;
-			} else {
-				return -bid[bidPointer];
-			}
-		}
+			return askPointer >= ask.length ? Double.POSITIVE_INFINITY : ask[askPointer];
+		} 
+		return bidPointer >= bid.length ? Double.POSITIVE_INFINITY : -bid[bidPointer];
 	}
 
 	@Override
@@ -97,10 +80,18 @@ public class Future implements DirectedEdge {
 	public void executeBid() {
 		if (from < to) {
 			if(bidPointer < bidLot.length && --bidLot[bidPointer] == 0) {
-				bidPointer++;
+				/*
+				 * If I am here, the current bid lot is empty, I should look to
+				 * the next one (hence, I move my pointer)
+				 */
+				bidPointer++; 
 			}
 		} else {
 			if(askPointer < askLot.length && --askLot[askPointer] == 0) {
+				/*
+				 * If I am here, the current ask lot is empty, I should look to
+				 * the next one (hence, I move my pointer)
+				 */
 				askPointer++;
 			}
 		}
@@ -110,10 +101,18 @@ public class Future implements DirectedEdge {
 	public void executeAsk() {
 		if (from < to) {
 			if(askPointer < askLot.length && --askLot[askPointer] == 0) {
+				/*
+				 * If I am here, the current ask lot is empty, I should look to
+				 * the next one (hence, I move my pointer)
+				 */
 				askPointer++;
 			}
 		} else {
 			if(bidPointer < bidLot.length && --bidLot[bidPointer] == 0) {
+				/*
+				 * If I am here, the current bid lot is empty, I should look to
+				 * the next one (hence, I move my pointer)
+				 */
 				bidPointer++;
 			}
 		}

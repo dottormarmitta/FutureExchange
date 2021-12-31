@@ -7,7 +7,7 @@ import graph.WeightedDigraph;
 
 /**
  * This class builds an exchange for time spreads. It does so implementing 
- * {@link: WeightedDigraph} interface. Indeed, an exchange is a graph, where
+ * {@link WeightedDigraph} interface. Indeed, an exchange is a graph, where
  * months are veritces and futures the edges.
  * 
  * @author Guglielmo Del Sarto

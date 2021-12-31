@@ -1,7 +1,10 @@
 package graph;
 
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Queue;
+
+import calendar.MonthDates;
 
 /**
  * This class has an implementation of the Bellman-Ford algorithm for finding top bid and top ask
@@ -20,7 +23,6 @@ public class BellmanFordAlgorithm {
 	
 	// To be used in methods
 	int currentV;
-	int w;
 	
 	// BID
 	private double[] bidTo;
@@ -35,23 +37,25 @@ public class BellmanFordAlgorithm {
 	private Queue<Integer> queueAsk = new LinkedList<>();
 	
 	/**
-	 * This constructur allows the user to build the class.
+	 * This constructor allows the user to build the class.
 	 * Two parameters have to be passed
 	 * 
 	 * @param G a directed graph
-	 * @param inceptionDate the source inception date we are interested on
+	 * @param inceptionDate the source inception date of the future
 	 */
-	public BellmanFordAlgorithm(WeightedDigraph G, int inceptionDate) {
+	public BellmanFordAlgorithm(WeightedDigraph G, MonthDates inceptionDate) {
 		
 		// Store important things...
 		this.G = G;
-		this.source = inceptionDate;
+		this.source = inceptionDate.ordinal();
 		
-		// ...initialize in the constructor: only one is needed...
+		// ...initialize in the constructor: only one initialization is needed...
 		bidTo = new double[G.getNumberOfVertices()];
 		edgeBidTo = new DirectedEdge[G.getNumberOfVertices()];
+		isVertexOnQueueBid = new boolean[G.getNumberOfVertices()];
 		askTo = new double[G.getNumberOfVertices()];
 		edgeAskTo = new DirectedEdge[G.getNumberOfVertices()];
+		isVertexOnQueueAsk = new boolean[G.getNumberOfVertices()];
 		
 		// ...preliminary tasks to be done
 		this.findBid();
@@ -63,14 +67,12 @@ public class BellmanFordAlgorithm {
 	 * <br>
 	 * TO BE NOTED: this method automatically execute the order
 	 * 
-	 * @param deliveryDateID the ID of the vertex associated to delivery date
+	 * @param deliveryDate the delivery date of the future we are interested on
 	 * @return topBid the highest bid available
 	 */
-	public double getBidTo(int deliveryDateID) {
-		for(DirectedEdge e : pathBidTo(deliveryDateID)) {
-			e.executeBid();
-		}
-		double currentTop = bidTo[deliveryDateID];
+	public double getBidTo(MonthDates deliveryDate) {
+		pathBidTo(deliveryDate).forEach(e -> e.executeBid());
+		double currentTop = bidTo[deliveryDate.ordinal()];
 		findBid();
 		return currentTop;
 	}
@@ -80,14 +82,12 @@ public class BellmanFordAlgorithm {
 	 * <br>
 	 * TO BE NOTED: this method automatically execute the order
 	 * 
-	 * @param deliveryDateID the ID of the vertex associated to delivery date
+	 * @param deliveryDate the delivery date of the future we are interested on
 	 * @return topAsk the lowest ask available
 	 */
-	public double getAskTo(int deliveryDateID) {
-		for(DirectedEdge e : pathAskTo(deliveryDateID)) {
-			e.executeAsk();
-		}
-		double currentTop = askTo[deliveryDateID];
+	public double getAskTo(MonthDates deliveryDate) {
+		pathAskTo(deliveryDate).forEach(e -> e.executeAsk());
+		double currentTop = askTo[deliveryDate.ordinal()];
 		findAsk();
 		return currentTop;
 	}
@@ -95,21 +95,21 @@ public class BellmanFordAlgorithm {
 	/**
 	 * This method check whether a bid to the specified delivery date is possible
 	 * 
-	 * @param deliveryDateID the ID of the vertex associated to delivery date
+	 * @param deliveryDate the delivery date of the future we are interested on
 	 * @return isBidAvailable a boolean to check whether a bid is available
 	 */
-	public boolean hasBidTo(int deliveryDateID) {
-		return bidTo[deliveryDateID] > Double.NEGATIVE_INFINITY;
+	public boolean hasBidTo(MonthDates deliveryDate) {
+		return bidTo[deliveryDate.ordinal()] > Double.NEGATIVE_INFINITY;
 	}
 	
 	/**
 	 * This method check whether an ask to the specified delivery date is possible
 	 * 
-	 * @param deliveryDateID the ID of the vertex associated to delivery date
+	 * @param deliveryDate the delivery date of the future we are interested on
 	 * @return isAskAvailable a boolean to check whether an ask is available
 	 */
-	public boolean hasAskTo(int deliveryDateID) {
-		return askTo[deliveryDateID] < Double.POSITIVE_INFINITY;
+	public boolean hasAskTo(MonthDates deliveryDate) {
+		return askTo[deliveryDate.ordinal()] < Double.POSITIVE_INFINITY;
 	}
 	
 	/*
@@ -117,7 +117,7 @@ public class BellmanFordAlgorithm {
 	 */
 	
 	private void findBid() {
-		isVertexOnQueueBid = new boolean[G.getNumberOfVertices()];
+		Arrays.fill(isVertexOnQueueBid, false);
 		for(int v = 0; v < bidTo.length; v++) {
 			bidTo[v] = Double.NEGATIVE_INFINITY; // Initialize to the lowest possible value
 		}
@@ -130,11 +130,11 @@ public class BellmanFordAlgorithm {
 			relaxBid(currentV);
 		}	
 	}
-	
+
 	private void findAsk() {
-		isVertexOnQueueAsk = new boolean[G.getNumberOfVertices()];
+		Arrays.fill(isVertexOnQueueAsk, false);
 		for(int v = 0; v < askTo.length; v++) {
-			askTo[v] = Double.POSITIVE_INFINITY;
+			askTo[v] = Double.POSITIVE_INFINITY; // Initialize to the greatest possible value
 		}
 		askTo[source] = 0.0;
 		queueAsk.add(source);
@@ -146,10 +146,15 @@ public class BellmanFordAlgorithm {
 		}
 	}
 	
-	private Iterable<DirectedEdge> pathBidTo(int v) {
+	/*
+	 * This method retrieves the path from source to v (for the current topBid).
+	 * This method is necessary as we need to execute the order and move to the next.
+	 * We must execute the order in each future of the path.
+	 */
+	private Iterable<DirectedEdge> pathBidTo(MonthDates v) {
 		if (hasBidTo(v)) {
 			LinkedList<DirectedEdge> path = new LinkedList<>();
-			for(DirectedEdge e = edgeBidTo[v]; e != null; e = edgeBidTo[e.from()]) {
+			for(DirectedEdge e = edgeBidTo[v.ordinal()]; e != null; e = edgeBidTo[e.from()]) {
 				path.addFirst(e);
 			}
 			return path;
@@ -157,10 +162,15 @@ public class BellmanFordAlgorithm {
 		return null;
 	}
 	
-	private Iterable<DirectedEdge> pathAskTo(int v) {
+	/*
+	 * This method retrieves the path from source to v (for the current topAsk).
+	 * This method is necessary as we need to execute the order and move to the next.
+	 * We must execute the order in each future of the path.
+	 */
+	private Iterable<DirectedEdge> pathAskTo(MonthDates v) {
 		if (hasAskTo(v)) {
 			LinkedList<DirectedEdge> path = new LinkedList<>();
-			for(DirectedEdge e = edgeAskTo[v]; e != null; e = edgeAskTo[e.from()]) {
+			for(DirectedEdge e = edgeAskTo[v.ordinal()]; e != null; e = edgeAskTo[e.from()]) {
 				path.addFirst(e);;
 			}
 			return path;
@@ -168,32 +178,38 @@ public class BellmanFordAlgorithm {
 		return null;
 	}
 	
+	/*
+	 * For each node, it determines whether a more costly way to reach that point is
+	 * possible or not. If that is possible, the cost is stored.
+	 */
 	private void relaxBid(int v) {
-		for(DirectedEdge e : G.getAdjacentVertices(v)) {
-			w = e.to();
-			if(bidTo[w] < bidTo[v] + e.bid()) {
-				bidTo[w] = bidTo[v] + e.bid();
-				edgeBidTo[w] = e;
-				if(!isVertexOnQueueBid[w]) {
-					queueBid.add(w);
-					isVertexOnQueueBid[w] = true;
+		G.getAdjacentVertices(v).forEach(e -> {
+			if(bidTo[e.to()] < bidTo[v] + e.bid()) {
+				bidTo[e.to()] = bidTo[v] + e.bid();
+				edgeBidTo[e.to()] = e;
+				if(!isVertexOnQueueBid[e.to()]) {
+					queueBid.add(e.to());
+					isVertexOnQueueBid[e.to()] = true;
 				}
 			}
-		}
+		});
 	}
 	
+	/*
+	 * For each node, it determines whether a cheaper way to reach that point is
+	 * possible or not. If that is possible, the cost is stored.
+	 */
 	private void relaxAsk(int v) {
-		for(DirectedEdge e : G.getAdjacentVertices(v)) {
-			w = e.to();
-			if(askTo[w] > askTo[v] + e.ask()) {
-				askTo[w] = askTo[v] + e.ask();
-				edgeAskTo[w] = e;
-				if(!isVertexOnQueueAsk[w]) {
-					queueAsk.add(w);
-					isVertexOnQueueAsk[w] = true;
+		G.getAdjacentVertices(v).forEach(e -> {
+			if(askTo[e.to()] > askTo[v] + e.ask()) {
+				askTo[e.to()] = askTo[v] + e.ask();
+				edgeAskTo[e.to()] = e;
+				if(!isVertexOnQueueAsk[e.to()]) {
+					queueAsk.add(e.to());
+					isVertexOnQueueAsk[e.to()] = true;
 				}
 			}
-		}
+		});
 	}
 
 }
